@@ -1274,11 +1274,6 @@ LatchDebug::shutdown()
 
 	mutex_free(&rw_lock_debug_mutex);
 
-	if (instance() == NULL) {
-
-		return;
-	}
-
 	ut_a(s_initialized);
 
 	s_initialized = false;
