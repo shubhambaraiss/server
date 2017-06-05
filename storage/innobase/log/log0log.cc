@@ -787,10 +787,9 @@ log_sys_init()
 }
 
 /** Initialize the redo log.
-@param[in]	n_files		number of files
-@param[in]	file_size	file size in bytes */
+@param[in]	n_files		number of files */
 void
-log_init(ulint n_files, lsn_t file_size)
+log_init(ulint n_files)
 {
 	ulint	i;
 	log_group_t*	group = &log_sys->log;
@@ -799,7 +798,7 @@ log_init(ulint n_files, lsn_t file_size)
 	group->format = srv_encrypt_log
 		? LOG_HEADER_FORMAT_CURRENT | LOG_HEADER_FORMAT_ENCRYPTED
 		: LOG_HEADER_FORMAT_CURRENT;
-	group->file_size = file_size;
+	group->file_size = srv_log_file_size;
 	group->state = LOG_GROUP_OK;
 	group->lsn = LOG_START_LSN;
 	group->lsn_offset = LOG_FILE_HDR_SIZE;
