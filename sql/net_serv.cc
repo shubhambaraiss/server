@@ -45,6 +45,7 @@
 #include <violite.h>
 #include <signal.h>
 #include "probes_mysql.h"
+#include "proxy_protocol.h"
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -827,6 +828,7 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
 }
 #endif /* NO_ALARM */
 
+extern int thd_set_peer_addr(THD *thd, sockaddr_storage *addr, const char *ip, uint port);
 
 /**
   Reads one packet to net->buff + net->where_b.
@@ -850,6 +852,9 @@ my_real_read(NET *net, size_t *complen,
 #ifndef NO_ALARM
   ALARM alarm_buff;
 #endif
+
+retry:
+
   my_bool net_blocking=vio_is_blocking(net->vio);
   uint32 remain= (net->compress ? NET_HEADER_SIZE+COMP_HEADER_SIZE :
 		  NET_HEADER_SIZE);
@@ -1081,6 +1086,21 @@ end:
 
 packets_out_of_order:
   {
+    /* Check if proxy header was sent. */
+    proxy_peer_info peer_info;
+    if (!parse_proxy_protocol_header(net, &peer_info))
+    {
+      if (!peer_info.is_local_connection)
+      {
+        if (thd_set_peer_addr((THD *)net->thd, &(peer_info.peer_addr), NULL, peer_info.port))
+          return packet_error;
+      }
+      /* After parsing proxy header, and set peer address and port in THD,
+       read the actual first packet from network.
+      */
+      goto retry;
+    }
+
     DBUG_PRINT("error",
                ("Packets out of order (Found: %d, expected %u)",
                 (int) net->buff[net->where_b + 3],
